@@ -193,7 +193,8 @@ h1, h2, h3 { font-weight: 400; }
 .rating-title { font-size: 26px; }
 .rubric-dims { margin-top: 16px; }
 .dim { padding: 18px 0 16px; border-bottom: 1px dashed var(--grid-strong); display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "legend" "def" "hint" "scaleA" "scaleB" "anchors"; align-items: start; }
-.dim-legend { grid-area: legend; float: left; width: 100%; display: flex; gap: 10px; align-items: baseline; font-size: 18px; }
+/* float makes the legend an ordinary grid item; no percentage width, which WebKit keeps stale after a rotation. */
+.dim-legend { grid-area: legend; float: left; display: flex; gap: 10px; align-items: baseline; font-size: 18px; }
 .dim-index { font: 400 18px var(--hand); color: var(--blue); }
 .dim-def { grid-area: def; font-size: 14px; line-height: 1.75; color: var(--ink-3); margin-top: 2px; }
 .dim-scales { display: contents; }
