@@ -1063,22 +1063,23 @@ window.createReviewDelivery = (config, invitation, storageKey, review) => {
     }
   }
 
+  // Loading a save only reads. It is followed by a save only when this device holds something the server lacks
+  // (answers changed here while offline, say); opening the link on another device writes nothing.
   async function resume() {
+    let ahead = true;
     try {
       const saved = await call('load_reading_review', { p_invite_token: invitation });
       if (saved?.payload && typeof saved.payload === 'object') {
-        review.adopt(saved.payload);
-        // When the merged answers are exactly the server's latest save, there is nothing to send.
-        const current = fingerprint(review.snapshot());
-        if (current === fingerprint(saved.payload) && record.confirmed !== current) {
-          record = { confirmed: current };
+        ahead = review.adopt(saved.payload);
+        if (!ahead) {
+          record = { confirmed: fingerprint(review.snapshot()) };
           persist();
         }
       }
     } catch (error) {
       if (error.status === 403) blocked = EXPIRED;
     }
-    sync();
+    if (ahead) sync(); else refresh();
   }
 
   retryButton?.addEventListener('click', () => { attempts = 0; sync(); });
@@ -1647,20 +1648,25 @@ window.createReviewDelivery = (config, invitation, storageKey, review) => {
       }))
     };
   }
-  // Merge the server's latest save (from this or another device): per item, the later edit wins.
+  // Merge the server's latest save (from this or another device): per item, the later edit wins; an item this device
+  // has never opened takes the server's version as it is. Returns whether this device holds anything newer than the
+  // server, the only case in which loading a save should be followed by sending one.
   function adopt(raw) {
-    if (!raw || raw.schema_version !== 2 || raw.packet_digest !== packet.digest || !Array.isArray(raw.responses) || raw.responses.length !== total) return;
+    if (!raw || raw.schema_version !== 2 || raw.packet_digest !== packet.digest || !Array.isArray(raw.responses) || raw.responses.length !== total) return true;
     const time = (answer) => Date.parse(answer?.updated_at || '') || 0;
     const fresh = !state.started_at;
     const current = currentTrial().id;
     let changed = false;
     let currentChanged = false;
+    let ahead = Boolean(state.rater_code) && state.rater_code !== raw.rater_code;
     packet.trials.forEach((trial, index) => {
       const record = raw.responses[index];
       if (!record || record.trial_id !== trial.id || record.candidate_a_id !== trial.candidates[0].id || record.candidate_b_id !== trial.candidates[1].id) return;
       let incoming;
       try { incoming = normalizeAnswer(record, trial); } catch (_) { return; }
-      if (incoming.status === 'not_started' || time(incoming) <= time(state.answers[trial.id])) return;
+      const local = state.answers[trial.id];
+      if (local && time(local) > time(incoming)) ahead = true;
+      if (local ? time(incoming) <= time(local) : incoming.status === 'not_started') return;
       state.answers[trial.id] = incoming;
       changed = true;
       if (trial.id === current) currentChanged = true;
@@ -1673,13 +1679,14 @@ window.createReviewDelivery = (config, invitation, storageKey, review) => {
       state.rater_code = raw.rater_code;
       const code = $('rater-code'); if (code) code.value = state.rater_code;
     }
-    if (!changed) { save(); return; }
+    if (!changed) { save(); return ahead; }
     if (fresh) state.current_index = Math.max(0, packet.trials.findIndex(t => !['completed', 'skipped'].includes(answerFor(t).status)));
     save();
     if (screen === 'welcome') showWelcome();
     else if (screen === 'finish') finish();
     else if (currentChanged) showTrial(state.current_index);
     else updateProgress();
+    return ahead;
   }
 
   try {
