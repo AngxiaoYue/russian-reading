@@ -122,7 +122,9 @@ h1, h2, h3 { font-weight: 400; }
 .progress-track { width: 100px; height: 6px; border-radius: 3px; background: repeating-linear-gradient(90deg, var(--grid-strong) 0 1px, transparent 1px 10px); position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px var(--grid-strong); }
 .progress-fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--progress, 0) * 100%); background: var(--blue); opacity: .8; transition: width .4s var(--ease); }
 .tools { justify-self: end; display: flex; gap: 2px; }
-[data-screen="welcome"] .progress, [data-screen="welcome"] #nav-button, [data-screen="welcome"] #font-button, [data-screen="finish"] #font-button { visibility: hidden; }
+/* Tools that do nothing on a screen leave it, so the remaining ones stay flush right; the progress keeps its place. */
+[data-screen="welcome"] .progress { visibility: hidden; }
+[data-screen="welcome"] #nav-button, [data-screen="welcome"] #font-button, [data-screen="finish"] #font-button { display: none; }
 
 /* Sheets sit on the grid like a notebook page with its margin. */
 .welcome-inner, .review, .finish-inner { max-width: 900px; margin: 40px auto 72px; padding: 56px 56px 64px calc(var(--gutter) + 40px); background: var(--paper); box-shadow: 0 1px 2px rgba(31, 36, 51, .06), 0 24px 48px -28px rgba(31, 36, 51, .28); }
